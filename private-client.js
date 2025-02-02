@@ -6,7 +6,7 @@ import axios from 'axios';
 const wsUrl = `${process.env.REVERB_SCHEME}://${process.env.REVERB_HOST}:${process.env.REVERB_PORT}/app/${process.env.REVERB_APP_KEY}`;
 console.log(`Connecting to Reverb WebSocket at ${wsUrl}...`);
 
-const userId=process.env.USER_ID;
+const messageGroupId=process.env.MESSAGE_GROUP_ID;
 const token=process.env.TOKEN;
 
 let socketId = null;
@@ -38,21 +38,24 @@ async function connectWebSocket() {
     const socket = new WebSocket(wsUrl);
 
     socket.on('open', ()=> {
-        console.log('CONNECTD TO REVERB WEBSOCKET SERVER');
+        console.log('CONNECTED TO REVERB WEBSOCKET SERVER');
     });
 
     socket.on('message', async (data) => {
         try {
             const messageData = JSON.parse(data.toString());
             console.log('📩 Received event:', messageData);
-
+            if (messageData.event === 'pusher:ping') {
+                console.log('🔄 Received ping, sending pong...');
+                socket.send(JSON.stringify({ event: "pusher:pong" }));
+            }
             // 🔹 Capture the socket_id when the connection is established
             if (messageData.event === 'pusher:connection_established') {
                 socketId = JSON.parse(messageData.data).socket_id;
                 console.log(`🔑 Received socket_id: ${socketId}`);
 
                 // 🔐 Authenticate and subscribe to the private channel
-                const privateChannel = `private-private_messages.${userId}`;
+                const privateChannel = `private-message-group.${messageGroupId}`;
                 const authResponse = await getAuthSignature(privateChannel, socketId);
 
                 if (!authResponse) {
